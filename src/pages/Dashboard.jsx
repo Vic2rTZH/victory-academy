@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getTodayQuote, SEED_QUOTES } from '../lib/seedData'
 import { Flame, ChevronRight, RefreshCw, Loader2 } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 
 async function fetchDailyQuote() {
   try {
@@ -22,6 +23,7 @@ export default function Dashboard() {
   const [cycleIdx, setCycleIdx] = useState(0)
   const [isCycling, setIsCycling] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [newEpisode, setNewEpisode] = useState(false)
   const streak = Number(localStorage.getItem('va_streak') || 0)
   const navigate = useNavigate()
 
@@ -31,6 +33,26 @@ export default function Dashboard() {
       setLoading(false)
     })
   }, [])
+
+  useEffect(() => {
+    if (!supabase) return
+    supabase.from('episodes').select('id').order('id', { ascending: false }).limit(1)
+      .then(({ data }) => {
+        if (!data?.length) return
+        const latestId = data[0].id
+        const seenId = localStorage.getItem('va_last_seen_episode')
+        if (seenId !== String(latestId)) setNewEpisode(true)
+      })
+  }, [])
+
+  const goToPodcast = () => {
+    supabase?.from('episodes').select('id').order('id', { ascending: false }).limit(1)
+      .then(({ data }) => {
+        if (data?.length) localStorage.setItem('va_last_seen_episode', String(data[0].id))
+      })
+    setNewEpisode(false)
+    navigate('/audio')
+  }
 
   // The displayed quote: daily AI quote first, then seed bank when cycling
   const displayQuote = isCycling
@@ -139,22 +161,30 @@ export default function Dashboard() {
         <p className="font-military text-xs tracking-widest text-white/30 mb-3">◆ SITREP — MISSION STATUS</p>
         <div className="space-y-2">
           {[
-            { label: 'TRACK DAILY HABITS', sub: 'Build your battle rhythm', path: '/habits', emoji: '✅' },
-            { label: 'REVIEW OBJECTIVES', sub: 'Stay locked onto your targets', path: '/goals', emoji: '🎯' },
-            { label: 'TC-PODCAST', sub: 'Take Command Podcast', path: '/audio', emoji: '🎧' },
+            { label: 'TRACK DAILY HABITS', sub: 'Build your battle rhythm', path: '/habits' },
+            { label: 'REVIEW OBJECTIVES', sub: 'Stay locked onto your targets', path: '/goals' },
+            { label: 'TC-PODCAST', sub: 'Take Command Podcast', path: '/audio' },
           ].map(item => (
             <button
               key={item.path}
-              onClick={() => navigate(item.path)}
+              onClick={() => item.path === '/audio' ? goToPodcast() : navigate(item.path)}
               className="w-full card-glass rounded-lg px-4 py-3.5 flex items-center justify-between hover:bg-white/8 transition-colors group"
             >
               <div className="flex items-center gap-3">
-                <span className="text-xl">{item.emoji}</span>
                 <div className="text-left">
-                  <p className="font-military tracking-wider text-sm text-white group-hover:gold-text transition-colors">
-                    {item.label}
+                  <div className="flex items-center gap-2">
+                    <p className="font-military tracking-wider text-sm text-white group-hover:gold-text transition-colors">
+                      {item.label}
+                    </p>
+                    {item.path === '/audio' && newEpisode && (
+                      <span className="flex items-center gap-1 bg-[#f5c842] text-[#0d0d18] text-[9px] font-military tracking-wider px-1.5 py-0.5 rounded-full">
+                        NEW
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-white/30 text-xs font-body">
+                    {item.path === '/audio' && newEpisode ? 'New episode available' : item.sub}
                   </p>
-                  <p className="text-white/30 text-xs font-body">{item.sub}</p>
                 </div>
               </div>
               <ChevronRight size={14} className="text-white/20 group-hover:gold-text transition-colors" />
