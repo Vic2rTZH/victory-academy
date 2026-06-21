@@ -141,7 +141,7 @@ export default function Dashboard() {
           {[
             { label: 'TRACK DAILY HABITS', sub: 'Build your battle rhythm', path: '/habits', emoji: '✅' },
             { label: 'REVIEW OBJECTIVES', sub: 'Stay locked onto your targets', path: '/goals', emoji: '🎯' },
-            { label: 'AUDIO INTEL', sub: 'Inspirational briefings', path: '/audio', emoji: '🎧' },
+            { label: 'TC-PODCAST', sub: 'Take Command Podcast', path: '/audio', emoji: '🎧' },
           ].map(item => (
             <button
               key={item.path}
