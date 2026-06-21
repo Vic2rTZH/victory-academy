@@ -1,6 +1,7 @@
-﻿import { useState } from 'react'
-import { Shield, Upload, Quote, Headphones, BarChart3, Lock, Eye, EyeOff } from 'lucide-react'
+﻿import { useState, useRef } from 'react'
+import { Shield, Upload, Quote, Headphones, BarChart3, Lock, Eye, EyeOff, Loader2, Trash2, CheckCircle2 } from 'lucide-react'
 import { SEED_HABITS } from '../lib/seedData'
+import { supabase } from '../lib/supabase'
 
 const ADMIN_PASS = 'victory2024'
 
@@ -181,29 +182,178 @@ export default function Admin() {
       )}
 
       {tab === 'audio' && (
-        <div className="space-y-4">
-          <div className="card-glass rounded-xl p-6 text-center space-y-3 border-2 border-dashed border-white/20">
-            <Upload size={32} className="text-white/30 mx-auto" />
-            <p className="text-white/60 text-sm font-semibold">Upload Audio Files</p>
-            <p className="text-white/30 text-xs">Connect Supabase Storage to enable audio uploads (MP3, AAC, M4A)</p>
-            <button className="btn-gold text-sm opacity-50 cursor-not-allowed" disabled>
-              Connect Supabase First
-            </button>
+        <AudioUploadTab />
+      )}
+    </div>
+  )
+}
+
+function AudioUploadTab() {
+  const fileRef = useRef()
+  const [form, setForm] = useState({ title: '', description: '', episode_number: '', category: 'Mindset' })
+  const [file, setFile] = useState(null)
+  const [uploading, setUploading] = useState(false)
+  const [status, setStatus] = useState(null)
+  const [episodes, setEpisodes] = useState([])
+  const [loaded, setLoaded] = useState(false)
+
+  const CATEGORIES = ['Mindset', 'Habits', 'Resilience', 'Systems', 'Goals', 'Discipline', 'Spiritual', 'Physical', 'Command']
+
+  const loadEpisodes = async () => {
+    if (!supabase) return
+    const { data } = await supabase.from('episodes').select('*').order('episode_number')
+    if (data) setEpisodes(data)
+    setLoaded(true)
+  }
+
+  useState(() => { loadEpisodes() }, [])
+
+  const upload = async () => {
+    if (!supabase) return setStatus({ error: 'Supabase not connected' })
+    if (!file || !form.title.trim()) return setStatus({ error: 'Title and audio file required' })
+    setUploading(true)
+    setStatus(null)
+
+    const ext = file.name.split('.').pop()
+    const fileName = `ep${form.episode_number || Date.now()}-${Date.now()}.${ext}`
+
+    const { data: storageData, error: storageErr } = await supabase.storage
+      .from('podcast-audio')
+      .upload(fileName, file, { contentType: file.type, upsert: false })
+
+    if (storageErr) {
+      setUploading(false)
+      return setStatus({ error: storageErr.message })
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('podcast-audio')
+      .getPublicUrl(fileName)
+
+    const { error: dbErr } = await supabase.from('episodes').insert({
+      title: form.title,
+      description: form.description,
+      episode_number: form.episode_number ? parseInt(form.episode_number) : null,
+      category: form.category,
+      audio_url: publicUrl,
+      published: true,
+    })
+
+    setUploading(false)
+    if (dbErr) return setStatus({ error: dbErr.message })
+
+    setStatus({ success: `"${form.title}" uploaded successfully!` })
+    setForm({ title: '', description: '', episode_number: '', category: 'Mindset' })
+    setFile(null)
+    if (fileRef.current) fileRef.current.value = ''
+    loadEpisodes()
+  }
+
+  const deleteEpisode = async (ep) => {
+    if (!supabase) return
+    const fileName = ep.audio_url.split('/').pop()
+    await supabase.storage.from('podcast-audio').remove([fileName])
+    await supabase.from('episodes').delete().eq('id', ep.id)
+    loadEpisodes()
+  }
+
+  if (!supabase) {
+    return (
+      <div className="card-glass rounded-xl p-6 text-center space-y-2">
+        <Upload size={28} className="text-white/20 mx-auto" />
+        <p className="text-white/40 text-sm">Supabase not connected</p>
+        <p className="text-white/20 text-xs">Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your environment</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Upload form */}
+      <div className="card-glass rounded-xl p-4 space-y-3">
+        <p className="font-military tracking-wider text-sm gold-text">◆ UPLOAD EPISODE</p>
+        <input
+          placeholder="Episode title..."
+          value={form.title}
+          onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+          className="w-full bg-transparent border border-white/20 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#f5c842] placeholder-white/30 font-body"
+        />
+        <textarea
+          placeholder="Short description..."
+          value={form.description}
+          onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+          rows={2}
+          className="w-full bg-transparent border border-white/20 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#f5c842] placeholder-white/30 font-body resize-none"
+        />
+        <div className="flex gap-2">
+          <input
+            placeholder="EP #"
+            type="number"
+            value={form.episode_number}
+            onChange={e => setForm(f => ({ ...f, episode_number: e.target.value }))}
+            className="w-20 bg-transparent border border-white/20 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#f5c842] placeholder-white/30 font-body"
+          />
+          <select
+            value={form.category}
+            onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+            className="flex-1 bg-[#0d0d18] border border-white/20 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#f5c842] text-white font-body"
+          >
+            {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+          </select>
+        </div>
+
+        {/* File picker */}
+        <div
+          onClick={() => fileRef.current?.click()}
+          className="border-2 border-dashed border-white/20 rounded-lg p-4 text-center cursor-pointer hover:border-[#f5c842]/40 transition-colors"
+        >
+          <Upload size={20} className="text-white/30 mx-auto mb-1" />
+          <p className="text-white/40 text-xs font-body">
+            {file ? file.name : 'Click to select MP3 / M4A / AAC'}
+          </p>
+        </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="audio/*"
+          className="hidden"
+          onChange={e => setFile(e.target.files[0])}
+        />
+
+        {status?.error && <p className="text-red-400 text-xs">{status.error}</p>}
+        {status?.success && (
+          <div className="flex items-center gap-2 text-green-400 text-xs">
+            <CheckCircle2 size={14} /> {status.success}
           </div>
-          <div className="card-glass rounded-xl p-4 space-y-2">
-            <p className="text-white/50 text-xs font-semibold uppercase tracking-wide">Setup Steps</p>
-            {[
-              'Create a free Supabase project at supabase.com',
-              'Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env',
-              'Run the SQL schema (see /docs/schema.sql)',
-              'Upload audio files and they appear automatically',
-            ].map((step, i) => (
-              <div key={i} className="flex gap-3 text-sm">
-                <span className="text-[#f5c842] shrink-0 font-bold">{i + 1}.</span>
-                <span className="text-white/50">{step}</span>
+        )}
+
+        <button
+          onClick={upload}
+          disabled={uploading}
+          className="btn-gold w-full flex items-center justify-center gap-2"
+        >
+          {uploading ? <><Loader2 size={14} className="animate-spin" /> Uploading...</> : 'Upload Episode'}
+        </button>
+      </div>
+
+      {/* Episode list */}
+      {loaded && episodes.length > 0 && (
+        <div className="space-y-2">
+          <p className="font-military text-xs tracking-widest text-white/30">◆ PUBLISHED EPISODES</p>
+          {episodes.map(ep => (
+            <div key={ep.id} className="card-glass rounded-xl px-4 py-3 flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="font-military tracking-wide text-sm truncate">{ep.title}</p>
+                <p className="text-white/30 text-xs font-body">{ep.episode_number ? `EP ${ep.episode_number} · ` : ''}{ep.category}</p>
               </div>
-            ))}
-          </div>
+              <button
+                onClick={() => deleteEpisode(ep)}
+                className="text-red-400/40 hover:text-red-400 transition-colors shrink-0"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>
