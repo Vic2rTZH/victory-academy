@@ -1,8 +1,24 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { SEED_HABITS } from '../lib/seedData'
-import { CheckCircle2, Circle, PlusCircle, Flame } from 'lucide-react'
+import { CheckCircle2, Circle, PlusCircle, Flame, Sun, Dumbbell, BookOpen, Moon, Heart, Droplets, BellOff, Salad, Star } from 'lucide-react'
 
 const TODAY = new Date().toDateString()
+
+const HABIT_ICONS = {
+  'Morning Mission Brief': Sun,
+  'Physical Training': Dumbbell,
+  'Read 20 Minutes': BookOpen,
+  'Evening After-Action Review': Moon,
+  'Gratitude & Reflection': Heart,
+  'Cold Shower / Discipline Drill': Droplets,
+  'No Phone First Hour': BellOff,
+  'Hydration & Nutrition Check': Salad,
+}
+
+function HabitIcon({ name, size = 18, className = '' }) {
+  const Icon = HABIT_ICONS[name] || Star
+  return <Icon size={size} strokeWidth={1.5} className={className} />
+}
 
 function loadState() {
   try {
@@ -26,7 +42,6 @@ export default function Habits() {
 
   useEffect(() => {
     localStorage.setItem('va_habits', JSON.stringify(checked))
-    // update streak
     const keys = Object.keys(checked).filter(k => {
       const vals = checked[k]
       return Object.values(vals).some(Boolean)
@@ -47,7 +62,7 @@ export default function Habits() {
 
   const addHabit = () => {
     if (!newHabit.trim()) return
-    setHabits(prev => [...prev, { name: newHabit.trim(), icon: 'â­', category: 'Custom' }])
+    setHabits(prev => [...prev, { name: newHabit.trim(), category: 'Custom' }])
     setNewHabit('')
     setAdding(false)
   }
@@ -60,42 +75,45 @@ export default function Habits() {
           <p className="text-white/40 text-xs tracking-widest font-body uppercase">{completedCount}/{habits.length} objectives completed</p>
         </div>
         <div className="card-glass rounded-lg px-3 py-2 flex items-center gap-1">
-          <Flame size={16} className="gold-text" />
+          <Flame size={16} strokeWidth={1.5} className="gold-text" />
           <span className="font-military text-xl gold-text">{completedCount}</span>
         </div>
       </div>
 
       {/* Progress bar */}
-      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+      <div className="h-1 bg-white/10 rounded-full overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-500"
           style={{
             width: `${habits.length ? (completedCount / habits.length) * 100 : 0}%`,
-            background: 'linear-gradient(90deg, #f5c842, #f5c842)',
+            background: 'linear-gradient(90deg, #c9972b, #f5c842)',
           }}
         />
       </div>
 
       {/* Habit list */}
-      <div className="space-y-3">
+      <div className="space-y-2">
         {habits.map((habit, i) => {
           const done = !!todayChecked[i]
           return (
             <button
               key={i}
               onClick={() => toggle(i)}
-              className={`w-full card-glass rounded-xl px-4 py-4 flex items-center gap-4 transition-all ${
-                done ? 'border-[#f5c842]/40 bg-[#f5c842]/5' : 'hover:bg-white/10'
+              className={`w-full card-glass rounded-xl px-4 py-3.5 flex items-center gap-4 transition-all ${
+                done ? 'border-[#f5c842]/30 bg-[#f5c842]/4' : 'hover:bg-white/6'
               }`}
             >
               {done
-                ? <CheckCircle2 size={22} className="text-[#f5c842] shrink-0" />
-                : <Circle size={22} className="text-white/30 shrink-0" />
+                ? <CheckCircle2 size={18} strokeWidth={1.5} className="gold-text shrink-0" />
+                : <Circle size={18} strokeWidth={1.5} className="text-white/20 shrink-0" />
               }
-              <span className="text-2xl">{habit.icon}</span>
+              <HabitIcon
+                name={habit.name}
+                className={done ? 'gold-text shrink-0' : 'text-white/40 shrink-0'}
+              />
               <div className="text-left flex-1">
-                <p className={`font-semibold text-sm ${done ? 'line-through text-white/40' : ''}`}>{habit.name}</p>
-                <p className="text-white/30 text-xs">{habit.category}</p>
+                <p className={`font-body font-semibold text-sm ${done ? 'line-through text-white/30' : ''}`}>{habit.name}</p>
+                <p className="text-white/25 text-xs font-body tracking-wider">{habit.category}</p>
               </div>
             </button>
           )
@@ -111,7 +129,7 @@ export default function Habits() {
             onChange={e => setNewHabit(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && addHabit()}
             placeholder="New habit name..."
-            className="w-full bg-transparent border border-white/20 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#f5c842] placeholder-white/30"
+            className="w-full bg-transparent border border-white/20 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#f5c842] placeholder-white/30 font-body"
           />
           <div className="flex gap-2">
             <button onClick={addHabit} className="btn-gold text-sm flex-1">Add</button>
@@ -121,10 +139,10 @@ export default function Habits() {
       ) : (
         <button
           onClick={() => setAdding(true)}
-          className="w-full flex items-center justify-center gap-2 text-white/40 hover:text-[#f5c842] transition-colors py-3 text-sm"
+          className="w-full flex items-center justify-center gap-2 text-white/30 hover:text-[#f5c842] transition-colors py-3 text-sm"
         >
-          <PlusCircle size={18} />
-          Add custom habit
+          <PlusCircle size={16} strokeWidth={1.5} />
+          <span className="font-military tracking-wider text-xs">ADD CUSTOM HABIT</span>
         </button>
       )}
     </div>
