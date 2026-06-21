@@ -258,10 +258,15 @@ function AudioUploadTab() {
     if (swapIdx < 0 || swapIdx >= episodes.length) return
     const a = episodes[idx]
     const b = episodes[swapIdx]
-    const numA = a.episode_number ?? idx + 1
-    const numB = b.episode_number ?? swapIdx + 1
-    await supabase.from('episodes').update({ episode_number: numB }).eq('id', a.id)
-    await supabase.from('episodes').update({ episode_number: numA }).eq('id', b.id)
+    // Assign position-based numbers if missing, then swap
+    const numA = idx + 1
+    const numB = swapIdx + 1
+    const [r1, r2] = await Promise.all([
+      supabase.from('episodes').update({ episode_number: numB }).eq('id', a.id),
+      supabase.from('episodes').update({ episode_number: numA }).eq('id', b.id),
+    ])
+    if (r1.error) { setStatus({ error: r1.error.message }); return }
+    if (r2.error) { setStatus({ error: r2.error.message }); return }
     loadEpisodes()
   }
 
