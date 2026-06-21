@@ -1,8 +1,94 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getTodayQuote, SEED_QUOTES } from '../lib/seedData'
-import { Flame, ChevronRight, RefreshCw, Loader2, CheckSquare, Target, Headphones } from 'lucide-react'
+import { Flame, ChevronRight, RefreshCw, Loader2, CheckSquare, Target, Headphones, Shield } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+
+const CR_CATEGORIES = ['Spiritual', 'Physical', 'Financial', 'Relational', 'Creational', 'Professional', 'Generational']
+
+function loadCR() {
+  try { return JSON.parse(localStorage.getItem('va_cr') || '{}') } catch { return {} }
+}
+
+function crStatus(pct) {
+  if (pct >= 80) return { label: 'COMBAT READY', color: 'text-green-400', bg: 'bg-green-400/10 border-green-400/30' }
+  if (pct >= 60) return { label: 'OPERATIONAL', color: 'text-[#f5c842]', bg: 'bg-[#f5c842]/10 border-[#f5c842]/30' }
+  if (pct >= 40) return { label: 'DEGRADED', color: 'text-orange-400', bg: 'bg-orange-400/10 border-orange-400/30' }
+  return { label: 'CRITICAL', color: 'text-red-400', bg: 'bg-red-400/10 border-red-400/30' }
+}
+
+function RadarChart({ scores }) {
+  const size = 160, cx = 80, cy = 80, r = 60, n = CR_CATEGORIES.length
+  const angle = i => (Math.PI * 2 * i) / n - Math.PI / 2
+  const gridPts = level => CR_CATEGORIES.map((_, i) => `${cx + r * level * Math.cos(angle(i))},${cy + r * level * Math.sin(angle(i))}`).join(' ')
+  const dataPts = CR_CATEGORIES.map((cat, i) => { const v = (scores[cat] || 0) / 10; return `${cx + r * v * Math.cos(angle(i))},${cy + r * v * Math.sin(angle(i))}` }).join(' ')
+  return (
+    <svg viewBox="0 0 160 160" width={160} height={160}>
+      {[0.25, 0.5, 0.75, 1].map(l => <polygon key={l} points={gridPts(l)} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />)}
+      {CR_CATEGORIES.map((_, i) => <line key={i} x1={cx} y1={cy} x2={cx + r * Math.cos(angle(i))} y2={cy + r * Math.sin(angle(i))} stroke="rgba(255,255,255,0.08)" strokeWidth="1" />)}
+      <polygon points={dataPts} fill="rgba(245,200,66,0.15)" stroke="#f5c842" strokeWidth="1.5" strokeLinejoin="round" />
+      {CR_CATEGORIES.map((cat, i) => { const v = (scores[cat] || 0) / 10; return <circle key={i} cx={cx + r * v * Math.cos(angle(i))} cy={cy + r * v * Math.sin(angle(i))} r="3" fill="#f5c842" /> })}
+      {CR_CATEGORIES.map((cat, i) => { const lx = cx + (r + 18) * Math.cos(angle(i)); const ly = cy + (r + 18) * Math.sin(angle(i)); return <text key={i} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle" fontSize="7" fill="rgba(255,255,255,0.4)" fontFamily="Rajdhani,sans-serif">{cat.slice(0,3).toUpperCase()}</text> })}
+    </svg>
+  )
+}
+
+function CombatReadiness() {
+  const [scores, setScores] = useState(loadCR)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(loadCR)
+  const filled = CR_CATEGORIES.filter(c => scores[c] > 0)
+  const avg = filled.length ? Math.round((filled.reduce((s, c) => s + scores[c], 0) / filled.length) * 10) : 0
+  const status = crStatus(avg)
+  const save = () => { setScores(draft); localStorage.setItem('va_cr', JSON.stringify(draft)); setEditing(false) }
+  return (
+    <div className="card-glass rounded-xl p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Shield size={14} strokeWidth={1.5} className="gold-text" />
+          <p className="font-military tracking-widest text-sm gold-text">COMBAT READINESS</p>
+        </div>
+        <button onClick={() => { setDraft(scores); setEditing(e => !e) }} className="text-white/30 hover:text-[#f5c842] text-[10px] font-military tracking-widest transition-colors">
+          {editing ? 'CANCEL' : 'UPDATE'}
+        </button>
+      </div>
+      {!editing ? (
+        <div className="flex items-center gap-4">
+          <RadarChart scores={scores} />
+          <div className="flex-1 space-y-3">
+            <div>
+              <p className="font-military text-4xl gold-text">{avg}%</p>
+              <span className={`inline-block mt-1 text-[10px] font-military tracking-widest px-2 py-0.5 rounded border ${status.bg} ${status.color}`}>{status.label}</span>
+            </div>
+            <div className="space-y-1.5">
+              {CR_CATEGORIES.map(cat => (
+                <div key={cat} className="flex items-center gap-2">
+                  <span className="text-white/30 text-[10px] font-military w-10">{cat.slice(0,4).toUpperCase()}</span>
+                  <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: `${(scores[cat] || 0) * 10}%`, background: 'linear-gradient(90deg,#c9972b,#f5c842)' }} />
+                  </div>
+                  <span className="text-white/30 text-[10px] font-body w-4 text-right">{scores[cat] || 0}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-white/30 text-xs font-body">Rate each domain 1–10</p>
+          {CR_CATEGORIES.map(cat => (
+            <div key={cat} className="flex items-center gap-3">
+              <span className="text-white/50 text-xs font-military w-24 shrink-0">{cat}</span>
+              <input type="range" min="0" max="10" step="1" value={draft[cat] || 0} onChange={e => setDraft(d => ({ ...d, [cat]: Number(e.target.value) }))} className="flex-1 accent-[#f5c842]" />
+              <span className="font-military text-sm gold-text w-4 text-right">{draft[cat] || 0}</span>
+            </div>
+          ))}
+          <button onClick={save} className="btn-gold w-full text-sm mt-2">SAVE ASSESSMENT</button>
+        </div>
+      )}
+    </div>
+  )
+}
 
 async function fetchDailyQuote() {
   try {
@@ -155,6 +241,8 @@ export default function Dashboard() {
           </p>
         )}
       </div>
+
+      <CombatReadiness />
 
       {/* SITREP */}
       <div>
