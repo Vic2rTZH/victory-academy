@@ -88,7 +88,6 @@ export default function Admin() {
             <Lock size={14} className="inline mr-2" />Enter Dashboard
           </button>
         </div>
-        <p className="text-white/20 text-xs">Default password: takecommand101</p>
       </div>
     )
   }
