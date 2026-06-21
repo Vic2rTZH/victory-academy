@@ -3,7 +3,7 @@ import { Shield, Upload, Quote, Headphones, BarChart3, Lock, Eye, EyeOff, Loader
 import { SEED_HABITS } from '../lib/seedData'
 import { supabase } from '../lib/supabase'
 
-const ADMIN_PASS = 'victory2024'
+const ADMIN_PASS = 'takecommand101'
 
 function StatCard({ label, value, icon: Icon, color }) {
   return (
@@ -88,7 +88,7 @@ export default function Admin() {
             <Lock size={14} className="inline mr-2" />Enter Dashboard
           </button>
         </div>
-        <p className="text-white/20 text-xs">Default password: victory2024</p>
+        <p className="text-white/20 text-xs">Default password: takecommand101</p>
       </div>
     )
   }
