@@ -5,13 +5,13 @@ function loadGoals() {
   try { return JSON.parse(localStorage.getItem('va_goals') || '[]') } catch { return [] }
 }
 
-const CATEGORIES = ['Health', 'Career', 'Financial', 'Relationships', 'Personal Growth', 'Spiritual']
+const CATEGORIES = ['Spiritual', 'Physical', 'Financial', 'Relational', 'Creational', 'Professional', 'Generational']
 
 export default function Goals() {
   const [goals, setGoals] = useState(loadGoals)
   const [adding, setAdding] = useState(false)
   const [expanded, setExpanded] = useState(null)
-  const [form, setForm] = useState({ title: '', category: 'Personal Growth', deadline: '', milestones: [''] })
+  const [form, setForm] = useState({ title: '', category: 'Spiritual', deadline: '', milestones: [''] })
 
   useEffect(() => { localStorage.setItem('va_goals', JSON.stringify(goals)) }, [goals])
 
@@ -23,7 +23,7 @@ export default function Goals() {
       milestones: form.milestones.filter(m => m.trim()).map(m => ({ text: m, done: false })),
       createdAt: new Date().toISOString(),
     }])
-    setForm({ title: '', category: 'Personal Growth', deadline: '', milestones: [''] })
+    setForm({ title: '', category: 'Spiritual', deadline: '', milestones: [''] })
     setAdding(false)
   }
 
