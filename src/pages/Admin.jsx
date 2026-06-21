@@ -137,10 +137,6 @@ export default function Admin() {
             <StatCard label="Custom Quotes" value={quotes.length} icon={Quote} color="text-purple-400" />
             <StatCard label="Streak" value={localStorage.getItem('va_streak') || 0} icon={BarChart3} color="text-orange-400" />
           </div>
-          <div className="card-glass rounded-xl p-4 text-center space-y-2">
-            <p className="text-white/40 text-xs">Connect Supabase to unlock full analytics</p>
-            <p className="text-white/20 text-xs">User sessions · Engagement rates · Completion trends</p>
-          </div>
         </div>
       )}
 
