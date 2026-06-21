@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getTodayQuote, SEED_QUOTES } from '../lib/seedData'
-import { Flame, ChevronRight, RefreshCw, Loader2 } from 'lucide-react'
+import { Flame, ChevronRight, RefreshCw, Loader2, CheckSquare, Target, Headphones } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 async function fetchDailyQuote() {
@@ -161,9 +161,9 @@ export default function Dashboard() {
         <p className="font-military text-xs tracking-widest text-white/30 mb-3">◆ SITREP — MISSION STATUS</p>
         <div className="space-y-2">
           {[
-            { label: 'TRACK DAILY HABITS', sub: 'Build your battle rhythm', path: '/habits' },
-            { label: 'REVIEW OBJECTIVES', sub: 'Stay locked onto your targets', path: '/goals' },
-            { label: 'TC-PODCAST', sub: 'Take Command Podcast', path: '/audio' },
+            { label: 'TRACK DAILY HABITS', sub: 'Build your battle rhythm', path: '/habits', icon: CheckSquare },
+            { label: 'REVIEW OBJECTIVES', sub: 'Stay locked onto your targets', path: '/goals', icon: Target },
+            { label: 'TC-PODCAST', sub: 'Take Command Podcast', path: '/audio', icon: Headphones },
           ].map(item => (
             <button
               key={item.path}
@@ -171,6 +171,9 @@ export default function Dashboard() {
               className="w-full card-glass rounded-lg px-4 py-3.5 flex items-center justify-between hover:bg-white/8 transition-colors group"
             >
               <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
+                  <item.icon size={16} strokeWidth={1.5} className="text-white/50 group-hover:gold-text transition-colors" />
+                </div>
                 <div className="text-left">
                   <div className="flex items-center gap-2">
                     <p className="font-military tracking-wider text-sm text-white group-hover:gold-text transition-colors">
