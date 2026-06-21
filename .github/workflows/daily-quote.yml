@@ -1,0 +1,56 @@
+name: Generate Daily Quote
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # 5:00 AM CAT (Zambia, UTC+2) daily
+  workflow_dispatch:       # allow manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate quote with Claude
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          TODAY=$(date -u +%Y-%m-%d)
+
+          RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
+            -H "x-api-key: $ANTHROPIC_API_KEY" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "content-type: application/json" \
+            -d '{
+              "model": "claude-haiku-4-5-20251001",
+              "max_tokens": 300,
+              "messages": [{
+                "role": "user",
+                "content": "You are generating a daily motivational quote for Victory Academy, a productivity app based on the book Take Command by Victor Simz (Lieutenant Colonel, Zambia Army).\n\nThe book teaches that life is a military campaign, all people are commanders, and uses the VICTORY Protocol (V-PRO) framework. Key themes: disciplined purpose over motivation, the 7 Battle Domains of Life (Spiritual, Physical, Financial, Mental, Relational, Professional, Legacy), self-command, planning like a military general, resilience, and the war metaphor for personal development.\n\nGenerate ONE original quote in Victor Simukonda'"'"'s voice — authoritative, military-inspired, deeply practical. It must feel like it belongs in Take Command. Choose one of these categories: Command, Discipline, Resilience, Mindset, Planning, Purpose, Focus, Action, Vision, Growth, Strategy, Inner Battle, Self-Mastery, Physical, Spiritual.\n\nRespond ONLY with valid JSON in this exact format, no other text:\n{\"text\": \"quote here\", \"author\": \"Victor Simz — Take Command\", \"category\": \"Category\"}"
+              }]
+            }')
+
+          # Extract the JSON quote from Claude response
+          QUOTE_JSON=$(echo "$RESPONSE" | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          text = data['content'][0]['text'].strip()
+          quote = json.loads(text)
+          quote['date'] = '$TODAY'
+          print(json.dumps(quote, indent=2))
+          ")
+
+          echo "$QUOTE_JSON" > public/daily-quote.json
+          echo "Generated quote for $TODAY"
+          cat public/daily-quote.json
+
+      - name: Commit new quote
+        run: |
+          git config user.name "Victory Academy Bot"
+          git config user.email "bot@victory-academy"
+          git add public/daily-quote.json
+          git diff --staged --quiet || git commit -m "chore: daily quote $(date -u +%Y-%m-%d)"
+          git push

@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    @apply bg-[#0d0d18] text-white antialiased m-0;
+    font-family: 'Rajdhani', 'Segoe UI', sans-serif;
+    font-size: 16px;
+    letter-spacing: 0.02em;
+  }
+  h1, h2, h3 {
+    font-family: 'Bebas Neue', 'Impact', sans-serif;
+    letter-spacing: 0.08em;
+  }
+  #root {
+    min-height: 100svh;
+  }
+}
+
+@layer utilities {
+  .font-military {
+    font-family: 'Bebas Neue', 'Impact', sans-serif;
+    letter-spacing: 0.08em;
+  }
+  .font-body {
+    font-family: 'Rajdhani', 'Segoe UI', sans-serif;
+  }
+  .gold-gradient {
+    background: linear-gradient(135deg, #c9972b, #f5c842);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .gold-text {
+    color: #f5c842;
+  }
+  .card-glass {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    backdrop-filter: blur(12px);
+  }
+  .card-command {
+    background: rgba(245, 200, 66, 0.05);
+    border: 1px solid rgba(245, 200, 66, 0.2);
+  }
+  .btn-gold {
+    background: linear-gradient(135deg, #c9972b, #f5c842);
+    @apply text-[#0d0d18] font-bold rounded-lg px-6 py-3 transition-all hover:opacity-90 active:scale-95;
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 0.1em;
+    font-size: 1rem;
+  }
+  .divider-military {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(245,200,66,0.3), transparent);
+  }
+}
