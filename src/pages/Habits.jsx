@@ -27,13 +27,16 @@ function loadState() {
   } catch { return {} }
 }
 
-function calcStreak(checked, totalHabits) {
-  if (!totalHabits) return 0
-  const threshold = Math.ceil(totalHabits / 2) // majority: >50%
+function loadDailyTotals() {
+  try { return JSON.parse(localStorage.getItem('va_habit_daily_totals') || '{}') } catch { return {} }
+}
 
-  // Collect all days that met the threshold, sorted descending
+function calcStreak(checked, dailyTotals, fallbackTotal) {
   const qualifyingDays = Object.keys(checked)
     .filter(day => {
+      const total = dailyTotals[day] ?? fallbackTotal
+      if (!total) return false
+      const threshold = Math.ceil(total / 2)
       const done = Object.values(checked[day] || {}).filter(Boolean).length
       return done >= threshold
     })
@@ -41,7 +44,6 @@ function calcStreak(checked, totalHabits) {
 
   if (!qualifyingDays.length) return 0
 
-  // Walk back from today counting consecutive days
   let streak = 0
   let cursor = new Date()
   cursor.setHours(0, 0, 0, 0)
@@ -66,24 +68,29 @@ export default function Habits() {
     return saved ? JSON.parse(saved) : SEED_HABITS
   })
   const [checked, setChecked] = useState(loadState)
+  const [dailyTotals, setDailyTotals] = useState(loadDailyTotals)
   const [newHabit, setNewHabit] = useState('')
   const [adding, setAdding] = useState(false)
 
   const todayKey = TODAY
   const todayChecked = checked[todayKey] || {}
   const completedCount = Object.values(todayChecked).filter(Boolean).length
-  const streak = calcStreak(checked, habits.length)
   const threshold = Math.ceil(habits.length / 2)
   const todayQualifies = completedCount >= threshold
+  const streak = calcStreak(checked, dailyTotals, habits.length)
+
+  // Record today's habit count whenever habits list changes
+  useEffect(() => {
+    const updated = { ...dailyTotals, [todayKey]: habits.length }
+    setDailyTotals(updated)
+    localStorage.setItem('va_habit_daily_totals', JSON.stringify(updated))
+    localStorage.setItem('va_habit_list', JSON.stringify(habits))
+  }, [habits])
 
   useEffect(() => {
     localStorage.setItem('va_habits', JSON.stringify(checked))
-    localStorage.setItem('va_streak', calcStreak(checked, habits.length))
-  }, [checked, habits.length])
-
-  useEffect(() => {
-    localStorage.setItem('va_habit_list', JSON.stringify(habits))
-  }, [habits])
+    localStorage.setItem('va_streak', calcStreak(checked, dailyTotals, habits.length))
+  }, [checked])
 
   const toggle = (id) => {
     setChecked(prev => ({
