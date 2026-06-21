@@ -172,7 +172,7 @@ export default function Dashboard() {
             >
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
-                  <item.icon size={16} strokeWidth={1.5} className="text-white/50 group-hover:gold-text transition-colors" />
+                  <item.icon size={16} strokeWidth={1.5} className="gold-text" />
                 </div>
                 <div className="text-left">
                   <div className="flex items-center gap-2">
