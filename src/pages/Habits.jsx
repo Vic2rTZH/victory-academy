@@ -27,6 +27,39 @@ function loadState() {
   } catch { return {} }
 }
 
+function calcStreak(checked, totalHabits) {
+  if (!totalHabits) return 0
+  const threshold = Math.ceil(totalHabits / 2) // majority: >50%
+
+  // Collect all days that met the threshold, sorted descending
+  const qualifyingDays = Object.keys(checked)
+    .filter(day => {
+      const done = Object.values(checked[day] || {}).filter(Boolean).length
+      return done >= threshold
+    })
+    .sort((a, b) => new Date(b) - new Date(a))
+
+  if (!qualifyingDays.length) return 0
+
+  // Walk back from today counting consecutive days
+  let streak = 0
+  let cursor = new Date()
+  cursor.setHours(0, 0, 0, 0)
+
+  for (const day of qualifyingDays) {
+    const d = new Date(day)
+    d.setHours(0, 0, 0, 0)
+    const diff = Math.round((cursor - d) / 86400000)
+    if (diff === 0 || diff === 1) {
+      streak++
+      cursor = d
+    } else {
+      break
+    }
+  }
+  return streak
+}
+
 export default function Habits() {
   const [habits, setHabits] = useState(() => {
     const saved = localStorage.getItem('va_habit_list')
@@ -39,15 +72,14 @@ export default function Habits() {
   const todayKey = TODAY
   const todayChecked = checked[todayKey] || {}
   const completedCount = Object.values(todayChecked).filter(Boolean).length
+  const streak = calcStreak(checked, habits.length)
+  const threshold = Math.ceil(habits.length / 2)
+  const todayQualifies = completedCount >= threshold
 
   useEffect(() => {
     localStorage.setItem('va_habits', JSON.stringify(checked))
-    const keys = Object.keys(checked).filter(k => {
-      const vals = checked[k]
-      return Object.values(vals).some(Boolean)
-    }).sort()
-    localStorage.setItem('va_streak', keys.length)
-  }, [checked])
+    localStorage.setItem('va_streak', calcStreak(checked, habits.length))
+  }, [checked, habits.length])
 
   useEffect(() => {
     localStorage.setItem('va_habit_list', JSON.stringify(habits))
@@ -72,11 +104,20 @@ export default function Habits() {
       <div className="flex items-center justify-between pt-2">
         <div>
           <h1 className="font-military text-3xl gold-gradient tracking-widest">DAILY HABITS</h1>
-          <p className="text-white/40 text-xs tracking-widest font-body uppercase">{completedCount}/{habits.length} objectives completed</p>
+          <p className="text-white/40 text-xs tracking-widest font-body uppercase">
+            {completedCount}/{habits.length} completed
+            {todayQualifies
+              ? <span className="text-[#f5c842]/60"> · streak day</span>
+              : <span className="text-white/20"> · need {threshold - completedCount} more</span>
+            }
+          </p>
         </div>
-        <div className="card-glass rounded-lg px-3 py-2 flex items-center gap-1">
-          <Flame size={16} strokeWidth={1.5} className="gold-text" />
-          <span className="font-military text-xl gold-text">{completedCount}</span>
+        <div className={`card-glass rounded-lg px-3 py-2 flex items-center gap-1.5 ${todayQualifies ? 'border border-[#f5c842]/30' : ''}`}>
+          <Flame size={16} strokeWidth={1.5} className={todayQualifies ? 'gold-text' : 'text-white/20'} />
+          <div className="text-right">
+            <span className="font-military text-xl gold-text">{streak}</span>
+            <p className="text-white/30 text-[9px] font-military tracking-widest -mt-1">DAY STREAK</p>
+          </div>
         </div>
       </div>
 
