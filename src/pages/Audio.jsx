@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Play, Pause, SkipBack, SkipForward, Volume2, Loader2, Radio } from 'lucide-react'
+import { Play, Pause, SkipBack, SkipForward, Volume2, Loader2, Radio, Mic } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 const FALLBACK_TRACKS = [
@@ -137,7 +137,7 @@ export default function Audio() {
         <div className="card-command rounded-xl p-5 space-y-4">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-lg bg-[#f5c842]/10 flex items-center justify-center shrink-0">
-              <span className="text-xl">{current.emoji || '🎙️'}</span>
+              <Mic size={18} strokeWidth={1.5} className="gold-text" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-military tracking-wider text-sm truncate">{current.title}</p>
@@ -215,7 +215,7 @@ export default function Audio() {
                 }`}
               >
                 <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
-                  <span className="text-lg">{ep.emoji || '🎙️'}</span>
+                  <Mic size={14} strokeWidth={1.5} className="text-white/30" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-military tracking-wider text-xs text-white/50 mb-0.5">

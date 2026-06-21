@@ -139,7 +139,7 @@ export default function Admin() {
           </div>
           <div className="card-glass rounded-xl p-4 text-center space-y-2">
             <p className="text-white/40 text-xs">Connect Supabase to unlock full analytics</p>
-            <p className="text-white/20 text-xs">User sessions Â· Engagement rates Â· Completion trends</p>
+            <p className="text-white/20 text-xs">User sessions · Engagement rates · Completion trends</p>
           </div>
         </div>
       )}
@@ -173,7 +173,7 @@ export default function Admin() {
             {quotes.map(q => (
               <div key={q.id} className="card-glass rounded-xl p-3 space-y-1">
                 <p className="text-sm text-white/80">"{q.text}"</p>
-                <p className="text-white/40 text-xs">{q.author} Â· {q.category}</p>
+                <p className="text-white/40 text-xs">{q.author} · {q.category}</p>
               </div>
             ))}
             {quotes.length === 0 && <p className="text-white/20 text-xs text-center py-4">No custom quotes yet</p>}
