@@ -1,5 +1,5 @@
 ﻿import { useState, useRef } from 'react'
-import { Shield, Upload, Quote, Headphones, BarChart3, Lock, Eye, EyeOff, Loader2, Trash2, CheckCircle2 } from 'lucide-react'
+import { Shield, Upload, Quote, Headphones, BarChart3, Lock, Eye, EyeOff, Loader2, Trash2, CheckCircle2, ChevronUp, ChevronDown } from 'lucide-react'
 import { SEED_HABITS } from '../lib/seedData'
 import { supabase } from '../lib/supabase'
 
@@ -253,6 +253,18 @@ function AudioUploadTab() {
     loadEpisodes()
   }
 
+  const moveEpisode = async (idx, dir) => {
+    const swapIdx = idx + dir
+    if (swapIdx < 0 || swapIdx >= episodes.length) return
+    const a = episodes[idx]
+    const b = episodes[swapIdx]
+    const numA = a.episode_number ?? idx + 1
+    const numB = b.episode_number ?? swapIdx + 1
+    await supabase.from('episodes').update({ episode_number: numB }).eq('id', a.id)
+    await supabase.from('episodes').update({ episode_number: numA }).eq('id', b.id)
+    loadEpisodes()
+  }
+
   if (!supabase) {
     return (
       <div className="card-glass rounded-xl p-6 text-center space-y-2">
@@ -336,8 +348,24 @@ function AudioUploadTab() {
       {loaded && episodes.length > 0 && (
         <div className="space-y-2">
           <p className="font-military text-xs tracking-widest text-white/30">◆ PUBLISHED EPISODES</p>
-          {episodes.map(ep => (
+          {episodes.map((ep, idx) => (
             <div key={ep.id} className="card-glass rounded-xl px-4 py-3 flex items-center gap-3">
+              <div className="flex flex-col gap-0.5 shrink-0">
+                <button
+                  onClick={() => moveEpisode(idx, -1)}
+                  disabled={idx === 0}
+                  className="text-white/20 hover:text-[#f5c842] disabled:opacity-0 transition-colors"
+                >
+                  <ChevronUp size={14} strokeWidth={1.5} />
+                </button>
+                <button
+                  onClick={() => moveEpisode(idx, 1)}
+                  disabled={idx === episodes.length - 1}
+                  className="text-white/20 hover:text-[#f5c842] disabled:opacity-0 transition-colors"
+                >
+                  <ChevronDown size={14} strokeWidth={1.5} />
+                </button>
+              </div>
               <div className="flex-1 min-w-0">
                 <p className="font-military tracking-wide text-sm truncate">{ep.title}</p>
                 <p className="text-white/30 text-xs font-body">{ep.episode_number ? `EP ${ep.episode_number} · ` : ''}{ep.category}</p>
