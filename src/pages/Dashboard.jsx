@@ -90,22 +90,16 @@ function CombatReadiness() {
   )
 }
 
-async function fetchDailyQuote() {
-  try {
-    const res = await fetch('/daily-quote.json?t=' + Date.now())
-    if (!res.ok) return null
-    const data = await res.json()
-    // Only use if it's today's quote
-    const today = new Date().toISOString().slice(0, 10)
-    if (data.date === today) return data
-    return null
-  } catch {
-    return null
-  }
+// Daily Command cards are sent from TC HQ (principles + verified quotes) into public.quotes.
+async function fetchCards() {
+  if (!supabase) return []
+  const { data } = await supabase.from('quotes').select('id, text, author, source, kind, category').eq('active', true).order('created_at', { ascending: true })
+  return data ?? []
 }
+const dayIndex = () => Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000)
 
 export default function Dashboard() {
-  const [dailyQuote, setDailyQuote] = useState(null)
+  const [cards, setCards] = useState([])
   const [cycleIdx, setCycleIdx] = useState(0)
   const [isCycling, setIsCycling] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -114,15 +108,15 @@ export default function Dashboard() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    fetchDailyQuote().then(q => {
-      setDailyQuote(q)
+    fetchCards().then(c => {
+      setCards(c)
       setLoading(false)
     })
   }, [])
 
   useEffect(() => {
     if (!supabase) return
-    supabase.from('episodes').select('id').order('id', { ascending: false }).limit(1)
+    supabase.from('episodes').select('id').order('created_at', { ascending: false }).limit(1)
       .then(({ data }) => {
         if (!data?.length) return
         const latestId = data[0].id
@@ -132,7 +126,7 @@ export default function Dashboard() {
   }, [])
 
   const goToPodcast = () => {
-    supabase?.from('episodes').select('id').order('id', { ascending: false }).limit(1)
+    supabase?.from('episodes').select('id').order('created_at', { ascending: false }).limit(1)
       .then(({ data }) => {
         if (data?.length) localStorage.setItem('va_last_seen_episode', String(data[0].id))
       })
@@ -140,10 +134,13 @@ export default function Dashboard() {
     navigate('/audio')
   }
 
-  // The displayed quote: daily AI quote first, then seed bank when cycling
+  // Today's card rotates through what Victor has sent; the built-in bank is the fallback.
+  const pool = cards.length ? cards : SEED_QUOTES
   const displayQuote = isCycling
-    ? SEED_QUOTES[cycleIdx % SEED_QUOTES.length]
-    : (dailyQuote || getTodayQuote())
+    ? pool[cycleIdx % pool.length]
+    : (cards.length ? cards[dayIndex() % cards.length] : getTodayQuote())
+  const isQuote = displayQuote.kind === 'quote'
+  const label = isQuote ? 'QUOTE' : 'PRINCIPLE'
 
   const cycleQuote = () => {
     if (!isCycling) {
@@ -186,60 +183,42 @@ export default function Dashboard() {
 
       <div className="divider-military" />
 
-      {/* Daily Command Quote */}
-      <div className="card-command rounded-xl p-5 space-y-4 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-24 h-24 opacity-5"
-          style={{ background: 'radial-gradient(circle, #f5c842, transparent)' }} />
-
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="font-military text-sm tracking-widest gold-text">
-              ◆ {isCycling ? 'ARCHIVES' : 'DAILY COMMAND'}
+      {/* Daily Command — Take Command principle / quote card (brand palette) */}
+      <div className="rounded-xl overflow-hidden relative" style={{ background: '#1e1e1e', border: '1px solid rgba(234,154,35,0.25)' }}>
+        <div style={{ height: 4, background: 'linear-gradient(90deg,#a03434,#ea9a23)' }} />
+        <div className="p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="font-military text-sm tracking-widest" style={{ color: '#ea9a23' }}>
+              ◆ {isCycling ? 'ARCHIVE' : 'DAILY COMMAND'}
             </span>
-            {!isCycling && dailyQuote && (
-              <span className="text-[9px] bg-[#f5c842]/15 gold-text px-1.5 py-0.5 rounded font-military tracking-wider">
-                AI
+            <div className="flex items-center gap-3">
+              {isCycling && (
+                <button onClick={backToDaily} className="text-white/40 hover:text-white text-xs font-military tracking-wider">← TODAY</button>
+              )}
+              <button onClick={cycleQuote} className="text-white/40 hover:text-white transition-colors" title={isCycling ? 'Next card' : 'Browse archive'}>
+                {loading ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+              </button>
+            </div>
+          </div>
+          <div className="font-military tracking-[0.3em] text-xs" style={{ color: '#a03434' }}>{label}</div>
+          <blockquote className="font-military leading-tight" style={{ color: '#eaeaea', fontSize: 'clamp(1.35rem, 5vw, 1.75rem)', letterSpacing: '0.02em' }}>
+            {isQuote ? `“${displayQuote.text}”` : displayQuote.text}
+          </blockquote>
+          <div className="flex items-end justify-between gap-3 pt-1" style={{ borderTop: '1px solid rgba(234,234,234,0.1)' }}>
+            <div className="pt-3">
+              <p className="text-xs font-body" style={{ color: 'rgba(234,234,234,0.6)' }}>— {displayQuote.author}</p>
+              {displayQuote.source && <p className="text-[10px] font-body" style={{ color: 'rgba(234,234,234,0.35)' }}>{displayQuote.source}</p>}
+            </div>
+            {displayQuote.category && (
+              <span className="text-[10px] px-2 py-0.5 rounded font-military tracking-wider shrink-0" style={{ background: 'rgba(160,52,52,0.2)', color: '#ea9a23' }}>
+                {displayQuote.category.toUpperCase()}
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            {isCycling && (
-              <button
-                onClick={backToDaily}
-                className="text-white/30 hover:gold-text transition-colors text-xs font-military tracking-wider"
-              >
-                ← TODAY
-              </button>
-            )}
-            <button
-              onClick={cycleQuote}
-              className="text-white/30 hover:gold-text transition-colors"
-              title={isCycling ? 'Next quote' : 'Browse archive'}
-            >
-              {loading
-                ? <Loader2 size={13} className="animate-spin" />
-                : <RefreshCw size={13} />
-              }
-            </button>
-          </div>
+          {isCycling && (
+            <p className="text-white/25 text-[10px] font-military tracking-widest text-center">{(cycleIdx % pool.length) + 1} OF {pool.length}</p>
+          )}
         </div>
-
-        <blockquote className="font-body text-base font-medium leading-relaxed text-white/90">
-          "{displayQuote.text}"
-        </blockquote>
-
-        <div className="flex items-center justify-between">
-          <p className="text-white/40 text-xs font-body">— {displayQuote.author}</p>
-          <span className="bg-[#f5c842]/10 gold-text text-xs px-2 py-0.5 rounded font-military tracking-wider">
-            {displayQuote.category?.toUpperCase()}
-          </span>
-        </div>
-
-        {isCycling && (
-          <p className="text-white/20 text-[10px] font-military tracking-widest text-center">
-            {cycleIdx + 1} OF {SEED_QUOTES.length} — NEW AI QUOTE DROPS DAILY
-          </p>
-        )}
       </div>
 
       <CombatReadiness />

@@ -26,10 +26,6 @@ export default function Admin() {
   const [showPass, setShowPass] = useState(false)
   const [error, setError] = useState('')
   const [tab, setTab] = useState('analytics')
-  const [quoteForm, setQuoteForm] = useState({ text: '', author: '', category: '' })
-  const [quotes, setQuotes] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('va_custom_quotes') || '[]') } catch { return [] }
-  })
 
   useEffect(() => {
     if (!supabase) return
@@ -47,14 +43,6 @@ export default function Admin() {
   }
 
   const logout = async () => { await supabase?.auth.signOut(); setAuthed(false) }
-
-  const addQuote = () => {
-    if (!quoteForm.text.trim()) return
-    const updated = [...quotes, { ...quoteForm, id: Date.now() }]
-    setQuotes(updated)
-    localStorage.setItem('va_custom_quotes', JSON.stringify(updated))
-    setQuoteForm({ text: '', author: '', category: '' })
-  }
 
   const habitsDone = (() => {
     try {
@@ -156,52 +144,56 @@ export default function Admin() {
           <div className="grid grid-cols-2 gap-3">
             <StatCard label="Habit Days Logged" value={habitsDone} icon={BarChart3} color="text-[#f5c842]" />
             <StatCard label="Active Goals" value={goalCount} icon={BarChart3} color="text-green-400" />
-            <StatCard label="Custom Quotes" value={quotes.length} icon={Quote} color="text-purple-400" />
             <StatCard label="Streak" value={localStorage.getItem('va_streak') || 0} icon={BarChart3} color="text-orange-400" />
           </div>
         </div>
       )}
 
-      {tab === 'quotes' && (
-        <div className="space-y-4">
-          <div className="card-glass rounded-xl p-4 space-y-3">
-            <p className="text-white/60 text-sm font-semibold">Add Quote</p>
-            <textarea
-              placeholder="Quote text..."
-              value={quoteForm.text}
-              onChange={e => setQuoteForm(f => ({ ...f, text: e.target.value }))}
-              rows={3}
-              className="w-full bg-transparent border border-white/20 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#f5c842] placeholder-white/30 resize-none"
-            />
-            <input
-              placeholder="Author..."
-              value={quoteForm.author}
-              onChange={e => setQuoteForm(f => ({ ...f, author: e.target.value }))}
-              className="w-full bg-transparent border border-white/20 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#f5c842] placeholder-white/30"
-            />
-            <input
-              placeholder="Category (e.g. Mindset, Habits)..."
-              value={quoteForm.category}
-              onChange={e => setQuoteForm(f => ({ ...f, category: e.target.value }))}
-              className="w-full bg-transparent border border-white/20 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#f5c842] placeholder-white/30"
-            />
-            <button onClick={addQuote} className="btn-gold w-full text-sm">Save Quote</button>
-          </div>
-          <div className="space-y-2">
-            {quotes.map(q => (
-              <div key={q.id} className="card-glass rounded-xl p-3 space-y-1">
-                <p className="text-sm text-white/80">"{q.text}"</p>
-                <p className="text-white/40 text-xs">{q.author} · {q.category}</p>
-              </div>
-            ))}
-            {quotes.length === 0 && <p className="text-white/20 text-xs text-center py-4">No custom quotes yet</p>}
-          </div>
-        </div>
-      )}
+      {tab === 'quotes' && <QuotesTab />}
 
       {tab === 'audio' && (
         <AudioUploadTab />
       )}
+    </div>
+  )
+}
+
+function QuotesTab() {
+  const [rows, setRows] = useState(null)
+  const [err, setErr] = useState('')
+  const [tick, setTick] = useState(0)
+  const load = () => setTick(t => t + 1)
+  useEffect(() => {
+    if (!supabase) return
+    supabase.from('quotes').select('id, text, author, source, kind, category, active').order('created_at', { ascending: true })
+      .then(({ data, error }) => { if (error) setErr(error.message); else setRows(data) })
+  }, [tick])
+  const act = async (q, action) => {
+    const { error } = action === 'delete'
+      ? await supabase.from('quotes').delete().eq('id', q.id)
+      : await supabase.from('quotes').update({ active: !q.active }).eq('id', q.id)
+    if (error) setErr(error.message); else load()
+  }
+  if (!supabase) return <p className="text-white/40 text-sm">Supabase not connected</p>
+  return (
+    <div className="space-y-3">
+      <div className="card-glass rounded-xl p-4 text-sm text-white/60">
+        Daily Command shows one card a day from this list. Add new cards from <span className="gold-text">TC HQ → Cards → Send to Victory Academy</span>.
+      </div>
+      {err && <p className="text-red-400 text-xs">{err}</p>}
+      {rows?.map(q => (
+        <div key={q.id} className="card-glass rounded-xl p-3 space-y-1" style={{ opacity: q.active ? 1 : 0.5 }}>
+          <p className="text-sm text-white/80">{q.kind === 'quote' ? `"${q.text}"` : q.text}</p>
+          <div className="flex items-center justify-between">
+            <p className="text-white/40 text-xs">{q.kind === 'quote' ? 'Quote' : 'Principle'} · {q.author}{q.category ? ` · ${q.category}` : ''}</p>
+            <div className="flex gap-3">
+              <button onClick={() => act(q, 'toggle')} className="text-white/40 hover:text-white text-xs">{q.active ? 'Hide' : 'Show'}</button>
+              <button onClick={() => confirm('Delete this card?') && act(q, 'delete')} className="text-red-400/70 hover:text-red-400"><Trash2 size={13} /></button>
+            </div>
+          </div>
+        </div>
+      ))}
+      {rows && rows.length === 0 && <p className="text-white/20 text-xs text-center py-4">No cards yet</p>}
     </div>
   )
 }
