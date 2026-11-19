@@ -1,9 +1,10 @@
-﻿import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Shield, Upload, Quote, Headphones, BarChart3, Lock, Eye, EyeOff, Loader2, Trash2, CheckCircle2, ChevronUp, ChevronDown } from 'lucide-react'
-import { SEED_HABITS } from '../lib/seedData'
 import { supabase } from '../lib/supabase'
 
-const ADMIN_PASS = 'takecommand101'
+// Admin sign-in uses Victor's Supabase account (same as cc.bantuwa.org).
+// Writes are enforced by database rules (private.is_app_admin), not by this page.
+const RESET_URL = 'https://cc.bantuwa.org/forgot'
 
 function StatCard({ label, value, icon: Icon, color }) {
   return (
@@ -18,7 +19,9 @@ function StatCard({ label, value, icon: Icon, color }) {
 }
 
 export default function Admin() {
-  const [authed, setAuthed] = useState(() => sessionStorage.getItem('va_admin') === '1')
+  const [authed, setAuthed] = useState(false)
+  const [checking, setChecking] = useState(!!supabase)
+  const [email, setEmail] = useState('')
   const [pass, setPass] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [error, setError] = useState('')
@@ -28,14 +31,22 @@ export default function Admin() {
     try { return JSON.parse(localStorage.getItem('va_custom_quotes') || '[]') } catch { return [] }
   })
 
-  const login = () => {
-    if (pass === ADMIN_PASS) {
-      sessionStorage.setItem('va_admin', '1')
-      setAuthed(true)
-    } else {
-      setError('Incorrect password')
-    }
+  useEffect(() => {
+    if (!supabase) return
+    supabase.auth.getSession().then(({ data }) => { setAuthed(!!data.session); setChecking(false) })
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => setAuthed(!!session))
+    return () => sub.subscription.unsubscribe()
+  }, [])
+
+  const login = async () => {
+    if (!supabase) return setError('Supabase not connected')
+    setError('')
+    const { error: e } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pass })
+    if (e) setError('Sign-in failed — check your email and password')
+    setPass('')
   }
+
+  const logout = async () => { await supabase?.auth.signOut(); setAuthed(false) }
 
   const addQuote = () => {
     if (!quoteForm.text.trim()) return
@@ -56,6 +67,8 @@ export default function Admin() {
     try { return JSON.parse(localStorage.getItem('va_goals') || '[]').length } catch { return 0 }
   })()
 
+  if (checking) return <div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="animate-spin text-white/30" /></div>
+
   if (!authed) {
     return (
       <div className="space-y-6 flex flex-col items-center justify-center min-h-[60vh]">
@@ -67,10 +80,19 @@ export default function Admin() {
           <p className="text-white/40 text-xs tracking-widest uppercase font-body">Admin Dashboard</p>
         </div>
         <div className="w-full max-w-xs space-y-3">
+          <input
+            type="email"
+            autoComplete="username"
+            placeholder="Email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            className="w-full bg-transparent border border-white/20 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#f5c842] placeholder-white/30"
+          />
           <div className="relative">
             <input
               type={showPass ? 'text' : 'password'}
-              placeholder="Enter admin password"
+              autoComplete="current-password"
+              placeholder="Password"
               value={pass}
               onChange={e => setPass(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && login()}
@@ -85,8 +107,9 @@ export default function Admin() {
           </div>
           {error && <p className="text-red-400 text-xs text-center">{error}</p>}
           <button onClick={login} className="btn-gold w-full">
-            <Lock size={14} className="inline mr-2" />Enter Dashboard
+            <Lock size={14} className="inline mr-2" />Sign in
           </button>
+          <p className="text-center text-xs text-white/30">Same account as the VS Command Center. <a href={RESET_URL} className="underline hover:text-white/60">Forgot password?</a></p>
         </div>
       </div>
     )
@@ -106,7 +129,7 @@ export default function Admin() {
           <p className="text-white/40 text-sm">Victory Academy dashboard</p>
         </div>
         <button
-          onClick={() => { sessionStorage.removeItem('va_admin'); setAuthed(false) }}
+          onClick={logout}
           className="text-white/30 hover:text-white/60 text-xs"
         >
           Logout
@@ -212,7 +235,7 @@ function AudioUploadTab() {
     const ext = file.name.split('.').pop()
     const fileName = `ep${form.episode_number || Date.now()}-${Date.now()}.${ext}`
 
-    const { data: storageData, error: storageErr } = await supabase.storage
+    const { error: storageErr } = await supabase.storage
       .from('podcast-audio')
       .upload(fileName, file, { contentType: file.type, upsert: false })
 
@@ -247,8 +270,9 @@ function AudioUploadTab() {
   const deleteEpisode = async (ep) => {
     if (!supabase) return
     const fileName = ep.audio_url.split('/').pop()
+    const { error: dErr } = await supabase.from('episodes').delete().eq('id', ep.id)
+    if (dErr) { setStatus({ error: dErr.message }); return }
     await supabase.storage.from('podcast-audio').remove([fileName])
-    await supabase.from('episodes').delete().eq('id', ep.id)
     loadEpisodes()
   }
 

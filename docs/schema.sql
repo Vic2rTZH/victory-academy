@@ -54,3 +54,9 @@ create policy "Admin can upload audio"
 create policy "Admin can delete audio"
   on storage.objects for delete
   using (bucket_id = 'podcast-audio');
+
+-- ── 2026-11-19 security update (applied as migration victory_academy_admin_only_writes in the shared project) ──
+-- Public: read published episodes, active quotes and podcast audio — unchanged.
+-- Writes (episodes, quotes, podcast-audio uploads/deletes) are limited to accounts listed in
+-- private.app_admins with app = 'victory-academy', checked by private.is_app_admin('victory-academy').
+-- The old anonymous insert/update/delete policies were removed. The admin page signs in with Supabase Auth.
