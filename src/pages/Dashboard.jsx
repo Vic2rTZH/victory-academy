@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getTodayQuote, SEED_QUOTES } from '../lib/seedData'
-import { Flame, ChevronRight, RefreshCw, Loader2, CheckSquare, Target, Headphones, Shield } from 'lucide-react'
+import { Flame, ChevronRight, RefreshCw, Loader2, CheckSquare, Target, Headphones, Shield, Share2 } from 'lucide-react'
+import { drawCard, loadImg } from '../lib/card'
 import { supabase } from '../lib/supabase'
 
 const CR_CATEGORIES = ['Spiritual', 'Physical', 'Financial', 'Relational', 'Creational', 'Professional', 'Generational']
@@ -93,13 +94,33 @@ function CombatReadiness() {
 // Daily Command cards are sent from TC HQ (principles + verified quotes) into public.quotes.
 async function fetchCards() {
   if (!supabase) return []
-  const { data } = await supabase.from('quotes').select('id, text, author, source, kind, category').eq('active', true).order('created_at', { ascending: true })
+  const { data } = await supabase.from('quotes').select('id, text, author, source, kind, category, domain, vpro_step').eq('active', true).order('created_at', { ascending: true })
   return data ?? []
 }
+const VPRO = { V: 'Visualize the End State', I: 'Identify Higher Intent', C: 'Clarify the Problem', T: 'Tasks', O: 'Operational Environment', R: 'Resources, Restrictions, Risks', Y: 'Your Mission' }
+const cap = (s) => s ? s[0].toUpperCase() + s.slice(1) : ''
+
+/** Renders the card as a 1080×1080 PNG and opens the phone's share sheet (falls back to a download). */
+async function shareCard(q) {
+  await Promise.all([document.fonts.load('78px "Bebas Neue"'), document.fonts.load('italic 40px "Bebas Neue"')])
+  const [logo, cover] = await Promise.all([loadImg('/vs-logo.png').catch(() => null), loadImg('/tc-cover.jpg').catch(() => null)])
+  const cv = document.createElement('canvas')
+  drawCard(cv, q.text, q.category || 'Take Command', logo, cover, q.kind === 'quote' ? 'QUOTES' : 'PRINCIPLE', q.kind === 'quote' ? q.author : '')
+  const blob = await new Promise(r => cv.toBlob(r, 'image/png'))
+  if (!blob) return
+  const file = new File([blob], 'take-command-daily.png', { type: 'image/png' })
+  const text = (q.kind === 'quote' ? `\u201c${q.text}\u201d \u2014 ${q.author}` : `${q.text} \u2014 Victor Simz, Take Command`) + '\n\nDaily Command from Victory Academy: https://va.bantuwa.org'
+  if (navigator.canShare?.({ files: [file] })) {
+    try { await navigator.share({ files: [file], text }); return } catch (e) { if (e?.name === 'AbortError') return }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = file.name; a.click(); URL.revokeObjectURL(a.href)
+}
+
 const dayIndex = () => Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000)
 
 export default function Dashboard() {
   const [cards, setCards] = useState([])
+  const [sharing, setSharing] = useState(false)
   const [cycleIdx, setCycleIdx] = useState(0)
   const [isCycling, setIsCycling] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -186,7 +207,10 @@ export default function Dashboard() {
       {/* Daily Command — Take Command principle / quote card (brand palette) */}
       <div className="rounded-xl overflow-hidden relative" style={{ background: '#1e1e1e', border: '1px solid rgba(234,154,35,0.25)' }}>
         <div style={{ height: 4, background: 'linear-gradient(90deg,#a03434,#ea9a23)' }} />
-        <div className="p-5 space-y-4">
+        {/* faint book-cover watermark */}
+        <img src="/tc-cover.jpg" alt="" aria-hidden="true" className="absolute right-0 top-0 h-full w-1/2 object-cover pointer-events-none select-none"
+          style={{ opacity: 0.08, objectPosition: 'center 75%', maskImage: 'linear-gradient(to left, black 30%, transparent)', WebkitMaskImage: 'linear-gradient(to left, black 30%, transparent)' }} />
+        <div className="p-5 space-y-4 relative">
           <div className="flex items-center justify-between">
             <span className="font-military text-sm tracking-widest" style={{ color: '#ea9a23' }}>
               ◆ {isCycling ? 'ARCHIVE' : 'DAILY COMMAND'}
@@ -195,6 +219,10 @@ export default function Dashboard() {
               {isCycling && (
                 <button onClick={backToDaily} className="text-white/40 hover:text-white text-xs font-military tracking-wider">← TODAY</button>
               )}
+              <button onClick={async () => { setSharing(true); try { await shareCard(displayQuote) } finally { setSharing(false) } }}
+                className="text-white/40 hover:text-white transition-colors" title="Share this card" aria-label="Share this card">
+                {sharing ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
+              </button>
               <button onClick={cycleQuote} className="text-white/40 hover:text-white transition-colors" title={isCycling ? 'Next card' : 'Browse archive'}>
                 {loading ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
               </button>
@@ -208,6 +236,11 @@ export default function Dashboard() {
             <div className="pt-3">
               <p className="text-xs font-body" style={{ color: 'rgba(234,234,234,0.6)' }}>— {displayQuote.author}</p>
               {displayQuote.source && <p className="text-[10px] font-body" style={{ color: 'rgba(234,234,234,0.35)' }}>{displayQuote.source}</p>}
+              {(displayQuote.vpro_step || displayQuote.domain) && (
+                <p className="text-[10px] font-military tracking-wider pt-1" style={{ color: 'rgba(234,154,35,0.7)' }}>
+                  {[displayQuote.vpro_step && `V-PRO · ${displayQuote.vpro_step} — ${VPRO[displayQuote.vpro_step]}`, displayQuote.domain && `${cap(displayQuote.domain)} domain`].filter(Boolean).join('  ·  ')}
+                </p>
+              )}
             </div>
             {displayQuote.category && (
               <span className="text-[10px] px-2 py-0.5 rounded font-military tracking-wider shrink-0" style={{ background: 'rgba(160,52,52,0.2)', color: '#ea9a23' }}>
