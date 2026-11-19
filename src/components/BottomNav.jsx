@@ -1,11 +1,11 @@
 import { NavLink } from 'react-router-dom'
-import { Home, CheckSquare, Target, Headphones } from 'lucide-react'
+import { Home, CheckSquare, Target, MonitorPlay } from 'lucide-react'
 
 const links = [
   { to: '/', icon: Home, label: 'HOME' },
   { to: '/habits', icon: CheckSquare, label: 'HABITS' },
   { to: '/goals', icon: Target, label: 'GOALS' },
-  { to: '/audio', icon: Headphones, label: 'AUDIO' },
+  { to: '/audio', icon: MonitorPlay, label: 'EPISODES' },
 ]
 
 export default function BottomNav() {

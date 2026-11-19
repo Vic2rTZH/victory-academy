@@ -200,7 +200,7 @@ function QuotesTab() {
 
 function AudioUploadTab() {
   const fileRef = useRef()
-  const [form, setForm] = useState({ title: '', description: '', episode_number: '', category: 'Mindset' })
+  const [form, setForm] = useState({ title: '', description: '', episode_number: '', category: 'Mindset', youtube: '' })
   const [file, setFile] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [status, setStatus] = useState(null)
@@ -220,9 +220,13 @@ function AudioUploadTab() {
 
   const upload = async () => {
     if (!supabase) return setStatus({ error: 'Supabase not connected' })
-    if (!file || !form.title.trim()) return setStatus({ error: 'Title and audio file required' })
+    const ytId = (form.youtube || '').trim().match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/)?.[1] || null
+    if (form.youtube?.trim() && !ytId) return setStatus({ error: 'That YouTube link is not valid' })
+    if (!form.title.trim() || (!file && !ytId)) return setStatus({ error: 'Title plus a YouTube link and/or an audio file required' })
     setUploading(true)
     setStatus(null)
+    let publicUrl = null
+    if (file) {
 
     const ext = file.name.split('.').pop()
     const fileName = `ep${form.episode_number || Date.now()}-${Date.now()}.${ext}`
@@ -236,9 +240,8 @@ function AudioUploadTab() {
       return setStatus({ error: storageErr.message })
     }
 
-    const { data: { publicUrl } } = supabase.storage
-      .from('podcast-audio')
-      .getPublicUrl(fileName)
+    publicUrl = supabase.storage.from('podcast-audio').getPublicUrl(fileName).data.publicUrl
+    }
 
     const { error: dbErr } = await supabase.from('episodes').insert({
       title: form.title,
@@ -246,6 +249,7 @@ function AudioUploadTab() {
       episode_number: form.episode_number ? parseInt(form.episode_number) : null,
       category: form.category,
       audio_url: publicUrl,
+      youtube_id: ytId,
       published: true,
     })
 
@@ -253,7 +257,7 @@ function AudioUploadTab() {
     if (dbErr) return setStatus({ error: dbErr.message })
 
     setStatus({ success: `"${form.title}" uploaded successfully!` })
-    setForm({ title: '', description: '', episode_number: '', category: 'Mindset' })
+    setForm({ title: '', description: '', episode_number: '', category: 'Mindset', youtube: '' })
     setFile(null)
     if (fileRef.current) fileRef.current.value = ''
     loadEpisodes()
@@ -261,10 +265,10 @@ function AudioUploadTab() {
 
   const deleteEpisode = async (ep) => {
     if (!supabase) return
-    const fileName = ep.audio_url.split('/').pop()
+    const fileName = ep.audio_url ? ep.audio_url.split('/').pop() : null
     const { error: dErr } = await supabase.from('episodes').delete().eq('id', ep.id)
     if (dErr) { setStatus({ error: dErr.message }); return }
-    await supabase.storage.from('podcast-audio').remove([fileName])
+    if (fileName) await supabase.storage.from('podcast-audio').remove([fileName])
     loadEpisodes()
   }
 
@@ -299,7 +303,7 @@ function AudioUploadTab() {
     <div className="space-y-4">
       {/* Upload form */}
       <div className="card-glass rounded-xl p-4 space-y-3">
-        <p className="font-military tracking-wider text-sm gold-text">◆ UPLOAD EPISODE</p>
+        <p className="font-military tracking-wider text-sm gold-text">◆ ADD EPISODE</p>
         <input
           placeholder="Episode title..."
           value={form.title}
@@ -312,6 +316,12 @@ function AudioUploadTab() {
           onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
           rows={2}
           className="w-full bg-transparent border border-white/20 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#f5c842] placeholder-white/30 font-body resize-none"
+        />
+        <input
+          placeholder="YouTube link (optional if you add audio)"
+          value={form.youtube}
+          onChange={e => setForm(f => ({ ...f, youtube: e.target.value }))}
+          className="w-full bg-transparent border border-white/20 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#f5c842] placeholder-white/30 font-body"
         />
         <div className="flex gap-2">
           <input
@@ -337,7 +347,7 @@ function AudioUploadTab() {
         >
           <Upload size={20} className="text-white/30 mx-auto mb-1" />
           <p className="text-white/40 text-xs font-body">
-            {file ? file.name : 'Click to select MP3 / M4A / AAC'}
+            {file ? file.name : 'Audio file (optional if YouTube link given) — MP3 / M4A / AAC'}
           </p>
         </div>
         <input
@@ -360,7 +370,7 @@ function AudioUploadTab() {
           disabled={uploading}
           className="btn-gold w-full flex items-center justify-center gap-2"
         >
-          {uploading ? <><Loader2 size={14} className="animate-spin" /> Uploading...</> : 'Upload Episode'}
+          {uploading ? <><Loader2 size={14} className="animate-spin" /> Uploading...</> : 'Add Episode'}
         </button>
       </div>
 
