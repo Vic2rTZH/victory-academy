@@ -6,13 +6,13 @@ import App from './App.jsx'
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/victory-academy/sw.js')
+    navigator.serviceWorker.register('/sw.js')
   })
 }
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <BrowserRouter basename="/victory-academy">
+    <BrowserRouter>
       <App />
     </BrowserRouter>
   </StrictMode>,

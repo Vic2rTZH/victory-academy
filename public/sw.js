@@ -1,5 +1,5 @@
-const CACHE = 'va-v1'
-const PRECACHE = ['/victory-academy/', '/victory-academy/index.html']
+const CACHE = 'va-v2'
+const PRECACHE = ['/', '/index.html']
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE)))

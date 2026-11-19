@@ -92,7 +92,7 @@ function CombatReadiness() {
 
 async function fetchDailyQuote() {
   try {
-    const res = await fetch('/victory-academy/daily-quote.json?t=' + Date.now())
+    const res = await fetch('/daily-quote.json?t=' + Date.now())
     if (!res.ok) return null
     const data = await res.json()
     // Only use if it's today's quote
@@ -164,7 +164,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-between pt-2">
         <div className="flex items-center gap-3">
           <img
-            src="/victory-academy/va-logo.jpg"
+            src="/va-logo.jpg"
             alt="Victory Academy"
             className="w-12 h-12 rounded-full object-cover"
             style={{ mixBlendMode: 'lighten' }}

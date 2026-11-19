@@ -2,11 +2,11 @@
   "name": "Victory Academy",
   "short_name": "Victory",
   "description": "Build habits, achieve goals, take command of your life.",
-  "start_url": "/victory-academy/",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#1a1a2e",
   "theme_color": "#1a1a2e",
   "icons": [
-    { "src": "/victory-academy/va-logo.jpg", "sizes": "512x512", "type": "image/jpeg", "purpose": "any maskable" }
+    { "src": "/va-logo.jpg", "sizes": "512x512", "type": "image/jpeg", "purpose": "any maskable" }
   ]
 }
